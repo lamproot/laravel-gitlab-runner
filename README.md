@@ -1,10 +1,10 @@
-# laravel-gitlab-runner, deploying to AWS EC2 instance
+# Laravel Gitlab runner, deploying to AWS EC2 instance
 We use Gitlab to deploy our Laravel projects on staging and production server.
 
-We have setup a Gitlab runner on our dev server. So we maintain caches across the pipeline and don't make use of artifacts. Feel free to use artifacts, its the recommended way to do CIs.
+Setup a Gitlab runner on your dev server. So that we can maintain caches across the pipeline without using artifacts. Feel free to use artifacts, its the recommended way for cloud runners.
 
 The user should set enviroment variables in gitlab CI/CD in project settings.
-The following are to be set.
+The following variables and its values needs to be set.
 
 DEPLOY_SERVERS (Should place your staging servers ip address)
 
@@ -25,6 +25,3 @@ SOURCE_DIR_PROD (Files and folders that need to be copied, * if you have to copy
 USER_NAME (Your staging EC2 username)
 
 USER_NAME_PROD (Your production EC2 username)
-
-
-
