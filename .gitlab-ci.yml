@@ -1,0 +1,127 @@
+stages:
+  - preparation
+  - building
+  - testing
+  - staging
+  - production
+
+# Variables
+variables:
+  MYSQL_ROOT_PASSWORD: root
+  MYSQL_USER: homestead
+  MYSQL_PASSWORD: secret
+  MYSQL_DATABASE: homestead
+  DB_HOST: mysql
+
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+
+composer:
+  stage: preparation
+  only:
+    - staging
+    - master
+  services:
+    - mysql:5.7
+  image: edbizarro/gitlab-ci-pipeline-php:7.2
+  script:
+    - php -v
+    - composer install --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts
+    - cp .env.example .env
+    - php artisan key:generate
+    - yarn --version
+    - yarn install --pure-lockfile
+  cache:
+    paths:
+      - node_modules/
+      - vendor/
+      - .env
+
+build-assets:
+  stage: building
+  only:
+    - staging
+    - master
+  services:
+    - mysql:5.7
+  image: edbizarro/gitlab-ci-pipeline-php:7.2
+  # Download the artifacts for these jobs
+  dependencies:
+    - composer
+  script:
+    - sudo npm install -g cross-env
+    - yarn --version
+    - yarn run production --progress false
+    - php artisan migrate:fresh --seed
+  cache:
+    paths:
+      - public/css/
+      - public/js/
+      - public/fonts/
+      - public/mix-manifest.json
+      - vendor/
+      - node_modules/
+
+phpunit:
+  stage: testing
+  only:
+    - staging
+    - master
+  services:
+    - mysql:5.7
+  image: edbizarro/gitlab-ci-pipeline-php:7.2
+  # Download the artifacts for these jobs
+  dependencies:
+    - build-assets
+  script:
+    - php -v
+    - sudo cp /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini /usr/local/etc/php/conf.d/docker-php-ext-xdebug.bak
+    - echo "" | sudo tee /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+    - ./vendor/phpunit/phpunit/phpunit --version
+    - php -d short_open_tag=off ./vendor/phpunit/phpunit/phpunit -v --colors=never --stderr
+    - sudo cp /usr/local/etc/php/conf.d/docker-php-ext-xdebug.bak /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+    - composer update --no-dev --prefer-dist --no-ansi --no-interaction --no-progress --no-scripts
+  cache:
+    paths:
+      - public/css/
+      - public/js/
+      - public/fonts/
+      - public/mix-manifest.json
+      - vendor/
+
+deploy:
+  stage: staging
+  only:
+    - staging
+  image: edbizarro/gitlab-ci-pipeline-php:7.2
+  script:
+    - bash deploy/deploy.sh
+  # Download the artifacts for these jobs
+  dependencies:
+    - phpunit
+  cache:
+    paths:
+      - public/css/
+      - public/js/
+      - public/fonts/
+      - public/mix-manifest.json
+      - vendor/
+
+
+deployprod:
+  stage: production
+  only:
+    - master
+  image: edbizarro/gitlab-ci-pipeline-php:7.2
+  script:
+    - bash deploy/deployprod.sh
+  # Download the artifacts for these jobs
+  dependencies:
+    - phpunit
+  cache:
+    paths:
+      - public/css/
+      - public/js/
+      - public/fonts/
+      - public/mix-manifest.json
+      - vendor/
